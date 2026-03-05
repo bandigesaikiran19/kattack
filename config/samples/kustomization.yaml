@@ -1,0 +1,5 @@
+## Append samples of your project ##
+resources:
+- loadtest_v1alpha1_vegetaloadtest.yaml
+- loadtest_v1alpha1_simple.yaml
+# +kubebuilder:scaffold:manifestskustomizesamples

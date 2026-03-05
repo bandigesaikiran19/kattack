@@ -1,0 +1,1 @@
+{{ .Files.Get "crds/loadtest.io_vegetaloadtests.yaml" }}

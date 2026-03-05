@@ -1,0 +1,6 @@
+apiVersion: v2
+name: kattack
+description: Kubernetes Operator for declarative Vegeta load tests
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

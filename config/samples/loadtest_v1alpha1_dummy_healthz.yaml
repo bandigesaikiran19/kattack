@@ -1,0 +1,137 @@
+apiVersion: loadtest.io/v1alpha1
+kind: VegetaLoadTest
+metadata:
+  name: dummy-healthz-check
+  namespace: default
+spec:
+  image:
+    repository: docker.io/peterevans/vegeta
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  report:
+    type: text
+    every: 5s
+    buckets: "[0,5ms,10ms,25ms,50ms,100ms,250ms,500ms,1s]"
+
+  attack:
+    rate: "10/1s"
+    duration: 30s
+    timeout: 5s
+    workers: 20
+    maxWorkers: 200
+    maxBody: -1
+    keepAlive: true
+    http2: false
+    h2c: false
+    insecure: false
+    redirects: 10
+    chunked: false
+    connections: 1000
+    resolvers:
+      - "kube-dns.kube-system:53"
+
+  thresholds:
+    p99Latency: 150ms
+    p95Latency: 100ms
+    p50Latency: 40ms
+    meanLatency: 60ms
+    maxLatency: 2s
+    successRate: 95
+    maxErrorRate: 5
+    throughput: 8
+    abortOnFailure: false
+
+  executionPolicy:
+    retries: 1
+    retryDelay: 10s
+    warmup:
+      enabled: true
+      rate: "5/1s"
+      duration: 5s
+
+  historyLimit:
+    successful: 3
+    failed: 5
+
+  ttlSecondsAfterFinished: 300
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    nodeSelector:
+      kubernetes.io/os: linux
+    podAnnotations:
+      sample.loadtest.io/profile: dummy-healthz
+    podLabels:
+      app.kubernetes.io/part-of: vegeta-tests
+    imagePullSecrets:
+      - name: regcred
+    serviceAccountName: default
+
+  schedule:
+    cron: "*/15 * * * *"
+    timezone: UTC
+    suspend: true
+    startingDeadlineSeconds: 120
+    concurrencyPolicy: Forbid
+
+  storage:
+    type: local
+    bucket: local
+    prefix: vegeta-reports/
+    credentialsSecretRef:
+      name: storage-creds
+      key: credentials
+    env:
+      - name: RCLONE_CONFIG
+        value: /tmp/rclone.conf
+
+  notifications:
+    onSuccess: false
+    onFailure: true
+    slack:
+      webhookSecretRef:
+        name: slack-webhook
+        key: url
+      channel: "#alerts"
+      mentionOnFailure: "@oncall"
+    webhook:
+      url: http://event-sink.default.svc.cluster.local/vegeta
+      method: POST
+      headers:
+        Content-Type: application/json
+      templateBody: '{"name":"{{ .metadata.name }}","phase":"{{ .status.phase }}"}'
+    email:
+      smtpSecretRef:
+        name: smtp-credentials
+        key: smtp-url
+      to:
+        - sre@example.com
+      subject: Vegeta load test result
+
+  targets:
+    - name: healthz-10rps
+      url: http://dummy-health-service:80/healthz
+      method: GET
+      headers:
+        X-Test-Run: baseline
+      continueOnFailure: true
+      waitAfter: 5s
+      thresholds:
+        successRate: 98
+        p99Latency: 120ms
+    - name: healthz-20rps
+      url: http://dummy-health-service:80/healthz
+      method: GET
+      attackOverride:
+        rate: "20/1s"
+        duration: 30s
+        timeout: 5s
+      headers:
+        X-Test-Run: peak
+      continueOnFailure: false

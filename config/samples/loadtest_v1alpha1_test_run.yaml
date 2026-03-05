@@ -1,0 +1,35 @@
+apiVersion: loadtest.io/v1alpha1
+kind: VegetaLoadTest
+metadata:
+  name: test-run-httpbin
+  namespace: default
+spec:
+  attack:
+    rate: "10/1s"
+    duration: 15s
+    timeout: 5s
+    workers: 10
+  report:
+    type: json
+  thresholds:
+    p99Latency: 2s
+    successRate: 95
+    maxErrorRate: 5
+    throughput: 5
+  executionPolicy:
+    retries: 1
+    retryDelay: 5s
+  historyLimit:
+    successful: 3
+    failed: 3
+  ttlSecondsAfterFinished: 300
+  targets:
+    - name: get-200
+      url: https://httpbin.org/status/200
+      method: GET
+      continueOnFailure: true
+      waitAfter: 2s
+    - name: get-delay
+      url: https://httpbin.org/delay/1
+      method: GET
+      continueOnFailure: true

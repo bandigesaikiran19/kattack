@@ -1,0 +1,15 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/loadtest-io/kattack
+  tag: latest
+  pullPolicy: IfNotPresent
+
+resources: {}
+
+rbac:
+  create: true
+
+serviceAccount:
+  create: true
+  name: ""

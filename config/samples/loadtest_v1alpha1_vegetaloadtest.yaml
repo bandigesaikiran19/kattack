@@ -1,0 +1,140 @@
+apiVersion: loadtest.io/v1alpha1
+kind: VegetaLoadTest
+metadata:
+  name: checkout-flow
+  namespace: default
+spec:
+  image:
+    repository: docker.io/peterevans/vegeta
+    tag: latest
+    pullPolicy: IfNotPresent
+  attack:
+    rate: "50/1s"
+    duration: 30s
+    timeout: 30s
+    workers: 20
+    connections: 2000
+    keepAlive: true
+    http2: true
+  report:
+    type: json
+    output: /tmp/report.json
+    every: 10s
+  storage:
+    type: s3
+    bucket: perf-reports
+    prefix: vegeta-reports/checkout-flow/
+    region: us-east-1
+    endpoint: s3.amazonaws.com
+    credentialsSecretRef:
+      name: s3-creds
+      key: credentials
+    env:
+      - name: AWS_REGION
+        value: us-east-1
+  schedule:
+    cron: "*/15 * * * *"
+    timezone: UTC
+    suspend: false
+    startingDeadlineSeconds: 120
+    concurrencyPolicy: Forbid
+  thresholds:
+    p99Latency: 500ms
+    p95Latency: 350ms
+    successRate: 99
+    maxErrorRate: 1
+    throughput: 40
+    abortOnFailure: true
+  notifications:
+    onSuccess: true
+    onFailure: true
+    slack:
+      webhookSecretRef:
+        name: slack-webhook
+        key: url
+      channel: "#perf-alerts"
+      mentionOnFailure: "@oncall"
+    webhook:
+      url: https://hooks.example.com/perf
+      method: POST
+      headers:
+        Content-Type: application/json
+      templateBody: |
+        {
+          "name": "{{.Name}}",
+          "phase": "{{.Phase}}",
+          "thresholdsPassed": {{.ThresholdsPassed}}
+        }
+  executionPolicy:
+    warmup:
+      enabled: true
+      rate: "5/1s"
+      duration: 5s
+    retries: 2
+    retryDelay: 10s
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    nodeSelector:
+      kubernetes.io/os: linux
+    podAnnotations:
+      app.kubernetes.io/component: loadtest
+    podLabels:
+      env: perf
+    serviceAccountName: vegeta-runner
+    imagePullSecrets:
+      - name: regcred
+  historyLimit:
+    successful: 3
+    failed: 5
+  ttlSecondsAfterFinished: 3600
+  targets:
+    - name: health-check
+      url: https://api.example.com/health
+      method: GET
+      continueOnFailure: true
+      waitAfter: 3s
+    - name: list-products
+      url: https://api.example.com/products
+      method: GET
+      headers:
+        Accept: application/json
+      continueOnFailure: false
+      waitAfter: 5s
+      thresholds:
+        p99Latency: 400ms
+        successRate: 99.5
+    - name: create-order
+      url: https://api.example.com/orders
+      method: POST
+      headers:
+        Content-Type: application/json
+      bodyConfigMapRef:
+        name: order-payload
+        key: body.json
+      attackOverride:
+        rate: "20/1s"
+        duration: 20s
+      continueOnFailure: false
+      waitAfter: 5s
+    - name: checkout
+      url: https://api.example.com/checkout
+      method: POST
+      headers:
+        Content-Type: application/json
+      bodySecretRef:
+        name: checkout-payload
+        key: body.json
+      continueOnFailure: false
+      waitAfter: 5s
+    - name: payment-webhook
+      url: https://api.example.com/payments/webhook
+      method: POST
+      headers:
+        Content-Type: application/json
+      body: '{"paymentId":"abc123","status":"SUCCESS"}'
+      continueOnFailure: true

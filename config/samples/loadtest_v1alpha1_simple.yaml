@@ -1,0 +1,22 @@
+apiVersion: loadtest.io/v1alpha1
+kind: VegetaLoadTest
+metadata:
+  name: simple-get
+  namespace: default
+spec:
+  image:
+    repository: docker.io/peterevans/vegeta
+    tag: latest
+    pullPolicy: IfNotPresent
+  attack:
+    rate: "20/1s"
+    duration: 20s
+  report:
+    type: text
+  targets:
+    - name: homepage
+      url: http://dummy-health-service:80/healthz
+      method: GET
+    - name: homepage1
+      url: http://dummy-health-service1:80/healthz
+      method: GET

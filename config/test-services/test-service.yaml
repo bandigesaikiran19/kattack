@@ -1,0 +1,38 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dummy-health-app
+  labels:
+    app: dummy-health
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dummy-health
+  template:
+    metadata:
+      labels:
+        app: dummy-health
+    spec:
+      containers:
+        - name: dummy-health
+          image: hashicorp/http-echo:0.2.3
+          args:
+            - "-listen=:8080"
+            - "-text=OK"
+          ports:
+            - containerPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dummy-health-service
+spec:
+  selector:
+    app: dummy-health
+  ports:
+    - port: 80
+      targetPort: 8080
+  type: ClusterIP
+
